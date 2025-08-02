@@ -1,58 +1,73 @@
-const input = document.getElementById("inputImage");
-const button = document.getElementById("processButton");
-const resultImg = document.getElementById("resultImage");
-const loadingMessage = document.getElementById("loadingMessage");
-const toStampBtn = document.getElementById("toStampBtn");
+let net;
 
-let resultImageUrl = "";
+// モデル読み込み
+async function loadModel() {
+  net = await bodyPix.load();
+  console.log("BodyPixモデル読み込み完了");
+}
 
-button.addEventListener("click", async () => {
-  if (!input.files[0]) {
-    alert("画像を選択してください");
-    return;
+// 背景除去関数
+async function removeBackground(imageElement) {
+  if (!net) await loadModel();
+
+  const segmentation = await net.segmentPerson(imageElement);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = imageElement.width;
+  canvas.height = imageElement.height;
+  const ctx = canvas.getContext("2d");
+
+  ctx.drawImage(imageElement, 0, 0);
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const j = i / 4;
+    if (!segmentation.data[j]) {
+      data[i + 3] = 0; // 背景を透明に
+    }
   }
 
-  const file = input.files[0];
-  const reader = new FileReader();
+  ctx.putImageData(imageData, 0, 0);
+  return canvas.toDataURL("image/png");
+}
 
-  reader.onloadend = async () => {
-    const base64Image = reader.result;
+window.onload = () => {
+  const input = document.getElementById("inputImage");
+  const button = document.getElementById("processButton");
+  const loading = document.getElementById("loadingMessage");
+  const resultImage = document.getElementById("resultImage");
+  const toStampBtn = document.getElementById("toStampBtn");
 
-    loadingMessage.style.display = "block";
-    resultImg.style.display = "none";
-    toStampBtn.style.display = "none";
+  let img = new Image();
 
-    try {
-      const response = await fetch("/api/remove-background", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ imageUrl: base64Image })
-      });
+  input.addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
 
-      const data = await response.json();
+  button.addEventListener("click", async () => {
+    if (!img.src) return;
 
-      if (data.imageUrl) {
-        resultImageUrl = data.imageUrl;
-        resultImg.src = resultImageUrl;
-        resultImg.style.display = "block";
-        toStampBtn.style.display = "inline-block";
-      } else {
-        alert("画像処理に失敗しました");
-      }
-    } catch (err) {
-      alert("エラーが発生しました");
-      console.error(err);
-    } finally {
-      loadingMessage.style.display = "none";
-    }
-  };
+    loading.style.display = "block";
 
-  reader.readAsDataURL(file);
-});
+    img.onload = async () => {
+      const outputUrl = await removeBackground(img);
+      resultImage.src = outputUrl;
+      resultImage.style.display = "block";
+      toStampBtn.style.display = "inline-block";
+      loading.style.display = "none";
+    };
+  });
 
-toStampBtn.addEventListener("click", () => {
-  localStorage.setItem("bgRemovedImage", resultImageUrl);
-  window.location.href = "index.html";
-});
+  // スタンプ作成ページへの遷移処理（必要に応じてリンク先変更）
+  toStampBtn.addEventListener("click", () => {
+    localStorage.setItem("removedBgImage", resultImage.src);
+    window.location.href = "index.html"; // スタンプ作成ページ
+  });
+};
