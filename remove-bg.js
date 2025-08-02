@@ -1,73 +1,32 @@
-let net;
+import * as bodyPix from '@tensorflow-models/body-pix';
+import '@tensorflow/tfjs-backend-webgl';
 
-// モデル読み込み
-async function loadModel() {
-  net = await bodyPix.load();
-  console.log("BodyPixモデル読み込み完了");
-}
+const uploadInput = document.getElementById('imageUpload');
+const canvas = document.getElementById('outputCanvas');
+const ctx = canvas.getContext('2d');
 
-// 背景除去関数
-async function removeBackground(imageElement) {
-  if (!net) await loadModel();
+uploadInput.addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
 
-  const segmentation = await net.segmentPerson(imageElement);
+  const image = new Image();
+  image.onload = async () => {
+    canvas.width = image.width;
+    canvas.height = image.height;
+    ctx.drawImage(image, 0, 0);
 
-  const canvas = document.createElement("canvas");
-  canvas.width = imageElement.width;
-  canvas.height = imageElement.height;
-  const ctx = canvas.getContext("2d");
+    const net = await bodyPix.load();
+    const segmentation = await net.segmentPerson(image, {
+      internalResolution: 'medium',
+    });
 
-  ctx.drawImage(imageElement, 0, 0);
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const data = imageData.data;
+    const mask = bodyPix.toMask(segmentation);
+    ctx.putImageData(mask, 0, 0);
 
-  for (let i = 0; i < data.length; i += 4) {
-    const j = i / 4;
-    if (!segmentation.data[j]) {
-      data[i + 3] = 0; // 背景を透明に
-    }
-  }
-
-  ctx.putImageData(imageData, 0, 0);
-  return canvas.toDataURL("image/png");
-}
-
-window.onload = () => {
-  const input = document.getElementById("inputImage");
-  const button = document.getElementById("processButton");
-  const loading = document.getElementById("loadingMessage");
-  const resultImage = document.getElementById("resultImage");
-  const toStampBtn = document.getElementById("toStampBtn");
-
-  let img = new Image();
-
-  input.addEventListener("change", (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      img.src = reader.result;
-    };
-    reader.readAsDataURL(file);
-  });
-
-  button.addEventListener("click", async () => {
-    if (!img.src) return;
-
-    loading.style.display = "block";
-
-    img.onload = async () => {
-      const outputUrl = await removeBackground(img);
-      resultImage.src = outputUrl;
-      resultImage.style.display = "block";
-      toStampBtn.style.display = "inline-block";
-      loading.style.display = "none";
-    };
-  });
-
-  // スタンプ作成ページへの遷移処理（必要に応じてリンク先変更）
-  toStampBtn.addEventListener("click", () => {
-    localStorage.setItem("removedBgImage", resultImage.src);
-    window.location.href = "index.html"; // スタンプ作成ページ
-  });
-};
+    // 人物部分のみ表示
+    ctx.globalCompositeOperation = 'source-in';
+    ctx.drawImage(image, 0, 0);
+    ctx.globalCompositeOperation = 'source-over';
+  };
+  image.src = URL.createObjectURL(file);
+});

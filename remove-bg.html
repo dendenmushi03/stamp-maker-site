@@ -1,32 +1,13 @@
 <!DOCTYPE html>
 <html lang="ja">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>背景を削除する</title>
-  <link rel="stylesheet" href="style.css">
-
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix@2.2.0"></script>
-
-</head>
-<body>
-  <h2>背景を削除してスタンプ向け画像にする</h2>
-  <p>以下に画像をアップロードしてください。人物だけが残ります。</p>
-
-  <input type="file" id="inputImage" accept="image/*">
-  <button id="processButton">背景を削除する</button>
-
-  <p id="loadingMessage" style="display: none; color: gray;">処理中です... しばらくお待ちください。</p>
-
-  <div id="outputContainer" style="margin-top: 20px;">
-    <h3>結果</h3>
-    <img id="resultImage" style="max-width: 100%; display: none;">
-    <br>
-    <!-- ↓ 追加ボタン -->
-    <button id="toStampBtn" style="display: none;">この画像でスタンプを作成する</button>
-  </div>
-
-  <script src="remove-bg.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <title>背景除去</title>
+  </head>
+  <body>
+    <h1>背景を削除してスタンプ向け画像にする</h1>
+    <input type="file" id="imageUpload" accept="image/*" />
+    <canvas id="outputCanvas"></canvas>
+    <script type="module" src="/remove-bg.js"></script>
+  </body>
 </html>
